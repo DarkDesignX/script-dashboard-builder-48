@@ -7,71 +7,9 @@ import { PowerShellCodeEditor } from "@/components/PowerShellCodeEditor";
 import { ArrowLeft, Edit, Trash2, Calendar, Users, Globe, Zap, Package, Shield, Settings, Terminal } from "lucide-react";
 import { Script, Customer, categoryLabels } from "@/types/script";
 import { useState, useEffect } from "react";
+import { apiService } from "@/services/api";
+import { useToast } from "@/hooks/use-toast";
 
-// Mock data - in a real app this would come from props/context or API
-const mockScripts: Script[] = [
-  {
-    id: "1",
-    name: "Windows Update Installation",
-    description: "Installiert alle verfügbaren Windows Updates automatisch",
-    category: "software",
-    command: "# Windows Update Installation\nGet-WUInstall -AcceptAll -AutoReboot",
-    customers: ["1", "2"],
-    isGlobal: true,
-    autoEnrollment: false,
-    createdAt: new Date("2024-01-15"),
-    updatedAt: new Date("2024-01-20")
-  },
-  {
-    id: "2", 
-    name: "Firewall Konfiguration",
-    description: "Konfiguriert Windows Firewall Regeln für Unternehmensumgebung",
-    category: "sicherheit",
-    command: "# Firewall Configuration\nNew-NetFirewallRule -DisplayName 'Allow Port 443' -Direction Inbound -Protocol TCP -LocalPort 443",
-    customers: ["1"],
-    isGlobal: false,
-    autoEnrollment: true,
-    createdAt: new Date("2024-01-10"),
-    updatedAt: new Date("2024-01-25")
-  },
-  {
-    id: "3",
-    name: "CPU Temperatur überwachen",
-    description: "Überwacht die CPU-Temperatur und gibt Warnungen bei kritischen Werten aus",
-    category: "befehl",
-    command: `# CPU Temperatur abfragen
-# Verwendet WMI zur Temperaturüberwachung
-$temperatureData = Get-WmiObject -Namespace "root/WMI" -Class "MSAcpi_ThermalZoneTemperature"
-if ($temperatureData) {
-    foreach ($temp in $temperatureData) {
-        $celsiusTemp = ($temp.CurrentTemperature / 10) - 273.15
-        Write-Host "CPU Temperatur: $([math]::Round($celsiusTemp, 2))°C"
-    }
-} else {
-    # Alternative Methode über OpenHardwareMonitor
-    Write-Host "Versuche alternative Temperaturabfrage..."
-    $sensors = Get-WmiObject -Namespace "root/OpenHardwareMonitor" -Class "Sensor" | Where-Object { $_.SensorType -eq "Temperature" -and $_.Name -like "*CPU*" }
-    if ($sensors) {
-        foreach ($sensor in $sensors) {
-            Write-Host "$($sensor.Name): $($sensor.Value)°C"
-        }
-    } else {
-        Write-Host "WARNUNG: Keine Temperatursensoren gefunden. Möglicherweise sind spezielle Treiber erforderlich."
-    }
-}`,
-    customers: ["3"],
-    isGlobal: false,
-    autoEnrollment: false,
-    createdAt: new Date("2024-01-22"),
-    updatedAt: new Date("2024-01-22")
-  }
-];
-
-const mockCustomers: Customer[] = [
-  { id: "1", name: "Acme Corp" },
-  { id: "2", name: "TechStart GmbH" },
-  { id: "3", name: "Global Solutions" }
-];
 
 const categoryIcons = {
   software: Package,
@@ -84,15 +22,52 @@ export default function ScriptDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [script, setScript] = useState<Script | null>(null);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [codeValue, setCodeValue] = useState("");
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
-    const foundScript = mockScripts.find(s => s.id === id);
-    if (foundScript) {
-      setScript(foundScript);
-      setCodeValue(foundScript.command);
+    if (id) {
+      loadScriptData(id);
     }
   }, [id]);
+
+  const loadScriptData = async (scriptId: string) => {
+    try {
+      setLoading(true);
+      const [scriptData, customersData] = await Promise.all([
+        apiService.getScript(scriptId),
+        apiService.getCustomers()
+      ]);
+      setScript(scriptData);
+      setCustomers(customersData);
+      setCodeValue(scriptData.command);
+    } catch (error) {
+      console.error('Failed to load script:', error);
+      toast({
+        title: "Fehler beim Laden",
+        description: "Skript konnte nicht geladen werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20 p-4">
+        <div className="max-w-4xl mx-auto">
+          <Card className="bg-card border-border p-8 text-center">
+            <Terminal className="h-12 w-12 text-muted-foreground mx-auto mb-4 animate-spin" />
+            <h1 className="text-2xl font-bold text-foreground mb-4">Skript wird geladen...</h1>
+            <p className="text-muted-foreground mb-6">Bitte warten Sie einen Moment.</p>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   if (!script) {
     return (
@@ -115,7 +90,7 @@ export default function ScriptDetail() {
 
   const getCustomerNames = (customerIds: string[]) => {
     return customerIds
-      .map(id => mockCustomers.find(c => c.id === id))
+      .map(id => customers.find(c => c.id === id))
       .filter(Boolean);
   };
 

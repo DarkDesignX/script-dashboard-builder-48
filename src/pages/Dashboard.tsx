@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScriptTable } from "@/components/ScriptTable";
@@ -6,149 +6,97 @@ import { ScriptDialog } from "@/components/ScriptDialog";
 import { Script, Customer } from "@/types/script";
 import { Plus, Terminal, Package, Shield, Settings, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { apiService } from "@/services/api";
 import hejubaLogo from "@/assets/hejuba-logo.png";
 
-// Mock data
-const mockCustomers: Customer[] = [
-  { id: '1', name: 'Kunde A GmbH' },
-  { id: '2', name: 'Kunde B AG' },
-  { id: '3', name: 'Kunde C KG' },
-  { id: '4', name: 'Kunde D Ltd.' },
-  { id: '5', name: 'Kunde E Inc.' },
-];
-
-const mockScripts: Script[] = [
-  {
-    id: '1',
-    name: 'Windows Update installieren',
-    command: `# Windows Updates installieren
-Get-Module -Name PSWindowsUpdate -ListAvailable
-if (-not (Get-Module -Name PSWindowsUpdate -ListAvailable)) {
-    Install-Module -Name PSWindowsUpdate -Force
-}
-Import-Module PSWindowsUpdate
-Get-WindowsUpdate
-Install-WindowsUpdate -AcceptAll -AutoReboot`,
-    description: 'Installiert alle verfügbaren Windows Updates automatisch',
-    category: 'sicherheit',
-    isGlobal: true,
-    autoEnrollment: true,
-    customers: ['1', '2', '3'],
-    createdAt: new Date('2024-01-15'),
-    updatedAt: new Date('2024-01-20'),
-  },
-  {
-    id: '2', 
-    name: 'Adobe Reader installieren',
-    command: `# Adobe Reader automatisch installieren
-$url = "https://get.adobe.com/reader/"
-$output = "$env:TEMP\\AdobeReader.exe"
-Invoke-WebRequest -Uri $url -OutFile $output
-Start-Process -FilePath $output -ArgumentList "/S" -Wait
-Remove-Item $output`,
-    description: 'Lädt Adobe Reader herunter und installiert es automatisch',
-    category: 'software',
-    isGlobal: false,
-    autoEnrollment: false,
-    customers: ['1', '4'],
-    createdAt: new Date('2024-01-10'),
-    updatedAt: new Date('2024-01-10'),
-  },
-  {
-    id: '3',
-    name: 'Netzwerk-Konfiguration prüfen',
-    command: `# Netzwerk-Diagnose durchführen
-ipconfig /all
-nslookup google.com
-ping -t 8.8.8.8
-Test-NetConnection -ComputerName "google.com" -Port 80`,
-    description: 'Führt eine umfassende Netzwerk-Diagnose durch',
-    category: 'konfiguration',
-    isGlobal: true,
-    autoEnrollment: false,
-    customers: ['2', '3', '5'],
-    createdAt: new Date('2024-01-12'),
-    updatedAt: new Date('2024-01-18'),
-  },
-  {
-    id: '4',
-    name: 'CPU Temperatur überwachen',
-    command: `# CPU Temperatur abfragen
-# Verwendet WMI zur Temperaturüberwachung
-$temperatureData = Get-WmiObject -Namespace "root/WMI" -Class "MSAcpi_ThermalZoneTemperature"
-if ($temperatureData) {
-    foreach ($temp in $temperatureData) {
-        $celsiusTemp = ($temp.CurrentTemperature / 10) - 273.15
-        Write-Host "CPU Temperatur: $([math]::Round($celsiusTemp, 2))°C"
-    }
-} else {
-    # Alternative Methode über OpenHardwareMonitor
-    Write-Host "Versuche alternative Temperaturabfrage..."
-    $sensors = Get-WmiObject -Namespace "root/OpenHardwareMonitor" -Class "Sensor" | Where-Object { $_.SensorType -eq "Temperature" -and $_.Name -like "*CPU*" }
-    if ($sensors) {
-        foreach ($sensor in $sensors) {
-            Write-Host "$($sensor.Name): $($sensor.Value)°C"
-        }
-    } else {
-        Write-Host "WARNUNG: Keine Temperatursensoren gefunden. Möglicherweise sind spezielle Treiber erforderlich."
-    }
-}`,
-    description: 'Überwacht die CPU-Temperatur und gibt Warnungen bei kritischen Werten aus',
-    category: 'befehl',
-    isGlobal: false,
-    autoEnrollment: false,
-    customers: ['3', '5'],
-    createdAt: new Date('2024-01-22'),
-    updatedAt: new Date('2024-01-22'),
-  },
-];
 
 export const Dashboard = () => {
-  const [scripts, setScripts] = useState<Script[]>(mockScripts);
+  const [scripts, setScripts] = useState<Script[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingScript, setEditingScript] = useState<Script | undefined>();
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+
+  // Load data from API on component mount
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [scriptsData, customersData] = await Promise.all([
+        apiService.getScripts(),
+        apiService.getCustomers()
+      ]);
+      setScripts(scriptsData);
+      setCustomers(customersData);
+    } catch (error) {
+      console.error('Failed to load data:', error);
+      toast({
+        title: "Fehler beim Laden",
+        description: "Daten konnten nicht geladen werden. Bitte stellen Sie sicher, dass der Server läuft.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleEdit = (script: Script) => {
     setEditingScript(script);
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (script: Script) => {
-    setScripts(prev => prev.filter(s => s.id !== script.id));
-    toast({
-      title: "Skript gelöscht",
-      description: `"${script.name}" wurde erfolgreich gelöscht.`,
-    });
-  };
-
-  const handleSave = (scriptData: Omit<Script, 'id' | 'createdAt' | 'updatedAt'>) => {
-    if (editingScript) {
-      // Update existing script
-      setScripts(prev => prev.map(s => 
-        s.id === editingScript.id 
-          ? { ...scriptData, id: editingScript.id, createdAt: editingScript.createdAt, updatedAt: new Date() }
-          : s
-      ));
+  const handleDelete = async (script: Script) => {
+    try {
+      await apiService.deleteScript(script.id);
+      setScripts(prev => prev.filter(s => s.id !== script.id));
       toast({
-        title: "Skript aktualisiert",
-        description: `"${scriptData.name}" wurde erfolgreich aktualisiert.`,
+        title: "Skript gelöscht",
+        description: `"${script.name}" wurde erfolgreich gelöscht.`,
       });
-    } else {
-      // Create new script
-      const newScript: Script = {
-        ...scriptData,
-        id: Date.now().toString(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      setScripts(prev => [...prev, newScript]);
+    } catch (error) {
+      console.error('Failed to delete script:', error);
       toast({
-        title: "Skript erstellt",
-        description: `"${scriptData.name}" wurde erfolgreich erstellt.`,
+        title: "Fehler",
+        description: "Skript konnte nicht gelöscht werden.",
+        variant: "destructive",
       });
     }
-    setEditingScript(undefined);
+  };
+
+  const handleSave = async (scriptData: Omit<Script, 'id' | 'createdAt' | 'updatedAt'>) => {
+    try {
+      if (editingScript) {
+        // Update existing script
+        const updatedScript = await apiService.updateScript(editingScript.id, scriptData);
+        setScripts(prev => prev.map(s => 
+          s.id === editingScript.id ? updatedScript : s
+        ));
+        toast({
+          title: "Skript aktualisiert",
+          description: `"${scriptData.name}" wurde erfolgreich aktualisiert.`,
+        });
+      } else {
+        // Create new script
+        const newScript = await apiService.createScript(scriptData);
+        setScripts(prev => [...prev, newScript]);
+        toast({
+          title: "Skript erstellt",
+          description: `"${scriptData.name}" wurde erfolgreich erstellt.`,
+        });
+      }
+      setEditingScript(undefined);
+    } catch (error) {
+      console.error('Failed to save script:', error);
+      toast({
+        title: "Fehler",
+        description: editingScript ? "Skript konnte nicht aktualisiert werden." : "Skript konnte nicht erstellt werden.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleNewScript = () => {
@@ -260,26 +208,42 @@ export const Dashboard = () => {
             <CardContent>
               <div className="flex items-center gap-2">
                 <Users className="h-5 w-5 text-warning" />
-                <span className="text-2xl font-bold text-foreground">{mockCustomers.length}</span>
+                <span className="text-2xl font-bold text-foreground">{customers.length}</span>
               </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Main Table */}
-        <ScriptTable
-          scripts={scripts}
-          customers={mockCustomers}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
+        {loading ? (
+          <Card className="bg-gradient-secondary border-border shadow-card">
+            <div className="p-6">
+              <div className="text-center py-12">
+                <Terminal className="h-12 w-12 text-muted-foreground mx-auto mb-4 animate-spin" />
+                <h3 className="text-lg font-medium text-foreground mb-2">
+                  Daten werden geladen...
+                </h3>
+                <p className="text-muted-foreground">
+                  Bitte warten Sie einen Moment.
+                </p>
+              </div>
+            </div>
+          </Card>
+        ) : (
+          <ScriptTable
+            scripts={scripts}
+            customers={customers}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
+        )}
 
         {/* Script Dialog */}
         <ScriptDialog
           open={isDialogOpen}
           onOpenChange={setIsDialogOpen}
           script={editingScript}
-          customers={mockCustomers}
+          customers={customers}
           onSave={handleSave}
         />
       </div>

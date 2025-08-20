@@ -1,73 +1,152 @@
-# Welcome to your Lovable project
+# Script Dashboard Builder
 
-## Project info
+A full-stack application for managing PowerShell scripts with a React/TypeScript frontend and Node.js backend.
+
+## Features
+
+- ✅ **Frontend**: React/TypeScript with Tailwind CSS and shadcn/ui components
+- ✅ **Backend**: Node.js/Express with SQLite database
+- ✅ **CRUD Operations**: Create, read, update, and delete scripts
+- ✅ **Customer Management**: Assign scripts to specific customers
+- ✅ **Categories**: Organize scripts by category (Software, Sicherheit, Konfiguration, Befehl)
+- ✅ **Script Editor**: PowerShell syntax highlighting
+- ✅ **Search & Filters**: Advanced filtering by category, customer, and status
+
+## Project Structure
+
+```
+script-dashboard-builder-48/
+├── src/                    # Frontend React application
+│   ├── components/         # UI components
+│   ├── pages/             # Page components
+│   ├── services/          # API service layer
+│   └── types/             # TypeScript type definitions
+├── server/                # Backend Node.js application
+│   ├── database.js        # SQLite database configuration
+│   ├── server.js          # Express server and API routes
+│   └── scripts/           # Database initialization scripts
+└── README.md
+```
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (v16 or higher)
+- npm
+
+### Installation & Setup
+
+1. **Install frontend dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Install backend dependencies:**
+   ```bash
+   cd server
+   npm install
+   ```
+
+3. **Initialize the database:**
+   ```bash
+   npm run init-db
+   ```
+   This will create the SQLite database and populate it with sample data.
+
+### Running the Application
+
+1. **Start the backend server:**
+   ```bash
+   cd server
+   npm run dev
+   ```
+   The backend API will be available at `http://localhost:3001`
+
+2. **Start the frontend (in a new terminal):**
+   ```bash
+   cd ..  # Back to project root
+   npm run dev
+   ```
+   The frontend will be available at `http://localhost:8080`
+
+### API Endpoints
+
+The backend provides the following REST API endpoints:
+
+#### Scripts
+- `GET /api/scripts` - Get all scripts
+- `GET /api/scripts/:id` - Get specific script
+- `POST /api/scripts` - Create new script
+- `PUT /api/scripts/:id` - Update script
+- `DELETE /api/scripts/:id` - Delete script
+
+#### Customers
+- `GET /api/customers` - Get all customers
+- `POST /api/customers` - Create new customer
+
+#### Health Check
+- `GET /api/health` - Server health check
+
+### Database Schema
+
+#### Scripts Table
+- `id` (TEXT PRIMARY KEY)
+- `name` (TEXT NOT NULL)
+- `command` (TEXT NOT NULL)
+- `description` (TEXT)
+- `category` (TEXT) - 'software', 'sicherheit', 'konfiguration', 'befehl'
+- `isGlobal` (INTEGER) - 0/1 boolean
+- `autoEnrollment` (INTEGER) - 0/1 boolean
+- `createdAt` (DATETIME)
+- `updatedAt` (DATETIME)
+
+#### Customers Table
+- `id` (TEXT PRIMARY KEY)
+- `name` (TEXT NOT NULL UNIQUE)
+
+#### Script_Customers Table (Junction)
+- `scriptId` (TEXT, FK to scripts.id)
+- `customerId` (TEXT, FK to customers.id)
+
+## Development
+
+### Frontend Development
+The frontend is built with:
+- **React 18** with TypeScript
+- **Vite** for build tooling
+- **Tailwind CSS** for styling
+- **shadcn/ui** for UI components
+- **React Router** for routing
+- **React Query** for API state management
+
+### Backend Development
+The backend uses:
+- **Express.js** for the web framework
+- **SQLite** for the database
+- **CORS** enabled for cross-origin requests
+- **Morgan** for request logging
+
+### Available Scripts
+
+#### Frontend
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+
+#### Backend
+- `npm start` - Start production server
+- `npm run dev` - Start development server with auto-reload
+- `npm run init-db` - Initialize database with schema and sample data
+
+## License
+
+This project is for demonstration purposes.
+
+---
+
+## Original Lovable Project Info
 
 **URL**: https://lovable.dev/projects/47cdeb0d-bb5c-4a4c-96e6-d3d623c5b06d
 
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/47cdeb0d-bb5c-4a4c-96e6-d3d623c5b06d) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/47cdeb0d-bb5c-4a4c-96e6-d3d623c5b06d) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+This project was originally built with Lovable and enhanced with a full Node.js backend.
